@@ -1,8 +1,10 @@
-from connections.database import engine
+from fastapi import FastAPI
+from connections.database import get_connection
 
-try:
-    with engine.connect() as connection:
-        print("Conectado ao MySQL com sucesso 🚀")
-except Exception as e:
-    print("Erro ao conectar no banco ❌")
-    print(e)
+app = FastAPI()
+
+@app.on_event("startup")
+def startup():
+    print("App iniciou 🚀")
+    get_connection()
+

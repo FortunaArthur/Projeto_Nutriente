@@ -17,9 +17,19 @@ DATABASE_URL = (
 
 engine = create_engine(
     DATABASE_URL,
-    echo=True  # igual ao logging do TypeORM
+    echo=False  # igual ao logging do TypeORM
 )
 
 SessionLocal = sessionmaker(bind=engine)
 
-export = { engine, SessionLocal }
+def get_connection():
+    try:
+        connection = engine.connect()
+        print("Conectado ao MySQL com sucesso ✅")
+        return connection
+    except Exception as e:
+        print("Erro ao conectar no banco ❌")
+        print(e)
+        return None
+
+export = get_connection
