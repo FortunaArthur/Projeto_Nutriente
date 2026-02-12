@@ -3,12 +3,15 @@
 DOCUMENTAÇÃO DO PROJETO - CONFIGURAÇÃO DO AMBIENTE PYTHON
 ===========================================================
 
-Este arquivo documenta tudo que foi feito até aqui:
+Este arquivo documenta a configuração do ambiente do projeto:
+
 - Criação do ambiente virtual (venv)
-- Ativação no Windows (CMD)
+- Ativação no Windows (CMD e PowerShell)
+- Configuração no VSCode
 - Instalação das dependências
-- Como rodar o projeto
-- Como replicar o ambiente em outro projeto
+- Geração do requirements.txt
+- Como replicar o ambiente
+- Como rodar o servidor FastAPI
 
 -----------------------------------------------------------
 1) O QUE É VENV?
@@ -16,140 +19,175 @@ Este arquivo documenta tudo que foi feito até aqui:
 
 venv = ambiente virtual do Python.
 
-Ele cria um Python isolado dentro do projeto.
-Isso evita conflitos de versão entre projetos diferentes.
+Ele cria um ambiente isolado dentro da pasta do projeto,
+contendo:
+
+- Um interpretador Python próprio
+- Um pip próprio
+- Suas próprias bibliotecas
+
+Isso evita conflito de versões entre projetos diferentes.
 
 Sem venv:
-    Todas as bibliotecas são instaladas no Python global do Windows.
+    Bibliotecas são instaladas no Python global do Windows.
 
 Com venv:
-    Cada projeto tem suas próprias bibliotecas isoladas.
+    Cada projeto possui suas próprias dependências isoladas.
 
-Equivalente no Node:
+Comparação com Node.js:
     venv ≈ node_modules
+    (porém o venv também inclui o próprio interpretador Python)
 
 -----------------------------------------------------------
-2) COMO CRIAMOS O VENV
+2) CRIAÇÃO DO VENV
 -----------------------------------------------------------
 
-Dentro da pasta do projeto rodamos:
+Dentro da pasta do projeto:
 
     python -m venv venv
 
-Explicação do comando:
+Explicação:
 
-    python        -> usa o Python instalado
-    -m venv       -> executa o módulo interno chamado venv
-    venv          -> nome da pasta criada
+    python      -> executa o Python instalado no sistema
+    -m venv     -> executa o módulo interno "venv"
+    venv        -> nome da pasta criada
 
-Isso criou a estrutura:
+Estrutura gerada:
 
     Projeto_Nutriente/
         venv/
             Scripts/
             Lib/
-            ...
+            pyvenv.cfg
 
-Essa pasta contém um Python exclusivo do projeto.
+O arquivo "pyvenv.cfg" vincula o ambiente à versão do Python usada.
 
 -----------------------------------------------------------
-3) COMO ATIVAMOS O VENV (WINDOWS - CMD)
+3) ATIVAÇÃO DO VENV (WINDOWS)
 -----------------------------------------------------------
 
-Abrimos o terminal CMD e rodamos:
+PowerShell:
+
+    .\venv\Scripts\Activate.ps1
+
+CMD:
 
     venv\Scripts\activate.bat
 
-Quando aparece:
+Se aparecer:
 
     (venv) D:\Projeto>
 
-Significa que o ambiente está ativo.
+O ambiente está ativo.
 
-O que acontece ao ativar:
-- O comando "python" passa a usar o python do venv
-- O comando "pip" passa a instalar dentro do venv
-- Nada mais é instalado globalmente
+Ao ativar:
+- O comando "python" usa o python do venv
+- O comando "pip" instala dentro do venv
+- O PATH é temporariamente alterado
 
 IMPORTANTE:
-Sempre que abrir o projeto, precisa ativar o venv novamente.
+Sempre que abrir um terminal novo, o venv precisa ser ativado.
+(O VSCode pode ativar automaticamente se configurado.)
 
 -----------------------------------------------------------
-4) INSTALANDO AS DEPENDÊNCIAS
+4) CONFIGURAÇÃO NO VSCODE
 -----------------------------------------------------------
 
-Depois de ativar o venv, instalamos:
+Selecionar o interpretador:
+
+Ctrl + Shift + P
+Python: Select Interpreter
+Selecionar:
+    venv\Scripts\python.exe
+
+Para ativação automática, criar:
+
+    .vscode/settings.json
+
+Com o conteúdo:
+
+{
+    "python.defaultInterpreterPath": "venv\\Scripts\\python.exe",
+    "python.terminal.activateEnvironment": true
+}
+
+Isso garante que o terminal integrado abra já com (venv).
+
+-----------------------------------------------------------
+5) INSTALAÇÃO DAS DEPENDÊNCIAS
+-----------------------------------------------------------
+
+Com o venv ativado:
 
     pip install fastapi uvicorn sqlalchemy pymysql python-dotenv
 
-Agora essas bibliotecas estão dentro do:
+As bibliotecas são instaladas em:
 
     venv/Lib/site-packages
 
 -----------------------------------------------------------
-5) GERANDO O ARQUIVO DE DEPENDÊNCIAS
+6) GERANDO O REQUIREMENTS.TXT
 -----------------------------------------------------------
 
-Para salvar todas as libs instaladas:
+Para salvar todas as dependências:
 
     pip freeze > requirements.txt
 
-Isso cria um arquivo com algo como:
+Esse arquivo registra as versões exatas instaladas.
 
-    fastapi==...
-    uvicorn==...
-    sqlalchemy==...
-    ...
-
-Esse arquivo é o equivalente ao "package.json" (dependências).
+Comparação com Node:
+    requirements.txt ≈ lista de dependências do package.json
+    (não contém scripts ou metadata do projeto)
 
 -----------------------------------------------------------
-6) COMO RECRIAR O PROJETO EM OUTRA MÁQUINA
+7) RECRIANDO O AMBIENTE EM OUTRA MÁQUINA
 -----------------------------------------------------------
 
-Se alguém clonar o projeto:
-
-1) Criar o venv:
+1) Clonar o projeto
+2) Criar o venv:
 
     python -m venv venv
 
-2) Ativar:
+3) Ativar:
 
-    venv\Scripts\activate
+    .\venv\Scripts\Activate.ps1
 
-3) Instalar dependências:
+4) Instalar dependências:
 
     pip install -r requirements.txt
 
-Pronto. Ambiente reconstruído.
+Ambiente reconstruído com as mesmas versões.
 
 -----------------------------------------------------------
-7) COMO RODAMOS O SERVIDOR
+8) EXECUTANDO O SERVIDOR FASTAPI
 -----------------------------------------------------------
 
-Criamos o arquivo main.py com:
+Forma recomendada:
 
-    uvicorn.run("init:app", reload=True)
+    uvicorn init:app --reload
 
-Então rodamos:
+Ou via Python:
 
-    python main.py
+    python -m uvicorn init:app --reload
 
-Isso inicia o servidor FastAPI.
+Onde:
+    init = nome do arquivo
+    app  = instância do FastAPI()
 
 -----------------------------------------------------------
-8) FLUXO PADRÃO PARA TODO PROJETO PYTHON
+9) FLUXO PADRÃO PARA QUALQUER PROJETO PYTHON
 -----------------------------------------------------------
-
-Sempre que criar um projeto novo:
 
 1) python -m venv venv
-2) venv\Scripts\activate
-3) pip install ...
+2) Ativar o ambiente
+3) pip install dependências
 4) pip freeze > requirements.txt
-5) python main.py
+5) Rodar aplicação
 
-Essa é a base profissional de qualquer projeto Python.
+Boa prática:
+- Nunca commitar a pasta venv
+- Sempre commitar o requirements.txt
+- Manter .env fora do versionamento
 
 -----------------------------------------------------------
 FIM DA DOCUMENTAÇÃO
