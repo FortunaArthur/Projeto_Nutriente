@@ -3,47 +3,139 @@ import time
 import textwrap
 
 
-def perguntar_ia(texto):
+URL = "http://localhost:11434/api/generate"
+
+
+# ---------------------------------------------------
+# ETAPA 1 - CORRIGIR SOMENTE ORTOGRAFIA
+# ---------------------------------------------------
+def corrigir_texto(texto):
     prompt = f"""
-    Você é um assistente médico educado.
-    Responda sempre em português do Brasil.
-    Seja claro e objetivo.
+Corrija apenas erros ortográficos do texto abaixo.
+Não reescreva frases.
+Não explique nada.
+Não adicione nada.
+Não remova nada.
+Não mude o significado.
+Retorne somente o texto corrigido, em uma única linha.
 
-    Pergunta do usuário:
-    {texto}
-    """
-
-    print("\n🤖 IA está pensando...\n")
+{texto}
+"""
 
     inicio = time.time()
 
     response = requests.post(
-        "http://localhost:11434/api/generate",
+        URL,
         json={
             "model": "phi3",
             "prompt": prompt,
-            "stream": False
+            "stream": False,
+            "options": {
+                "temperature": 0.1,
+                "num_predict": 120
+            }
         }
     )
 
     fim = time.time()
-    tempo_total = fim - inicio
 
-    resposta = response.json()["response"]
+    texto_corrigido = response.json()["response"].strip()
 
-    return resposta, tempo_total
+    # Limpeza caso o modelo insista em colocar rótulo
+    if "Texto corrigido:" in texto_corrigido:
+        texto_corrigido = texto_corrigido.split("Texto corrigido:")[-1].strip()
+
+    return texto_corrigido, fim - inicio
 
 
-def formatar_texto(texto, largura=80):
-    return textwrap.fill(texto.strip(), width=largura)
+# ---------------------------------------------------
+# ETAPA 2 - ANALISAR SINTOMAS
+# ---------------------------------------------------
+def analisar_sintomas(texto_corrigido):
+    prompt = f"""
+Você é um assistente médico educado.
+Responda em português do Brasil.
+Seja direto e objetivo.
 
+Use EXATAMENTE o formato abaixo:
 
-if __name__ == "__main__":
-    resposta, tempo = perguntar_ia(
-        "Estou com dor de cabeça, eu ainda não bebi água hoje, o que devo fazer?"
+Sintomas identificados:
+- ...
+
+Possíveis causas:
+- ...
+
+Recomendações:
+- ...
+
+Não invente sintomas.
+Não exagere nas recomendações.
+Baseie-se apenas no texto fornecido.
+
+Texto:
+{texto_corrigido}
+"""
+
+    inicio = time.time()
+
+    response = requests.post(
+        URL,
+        json={
+            "model": "phi3",
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": 0.2,
+                "top_p": 0.9,
+                "num_predict": 180
+            }
+        }
     )
 
-    print("🩺 Resposta da IA:\n")
-    print(formatar_texto(resposta))
+    fim = time.time()
 
-    print(f"\n⏱ Tempo de resposta: {tempo:.2f} segundos\n")
+    return response.json()["response"].strip(), fim - inicio
+
+
+# ---------------------------------------------------
+# FORMATAR TEXTO BONITO NO TERMINAL
+# ---------------------------------------------------
+def formatar_texto(texto, largura=80):
+    return textwrap.fill(texto, width=largura)
+
+
+# ---------------------------------------------------
+# EXECUÇÃO PRINCIPAL
+# ---------------------------------------------------
+if __name__ == "__main__":
+
+    texto_usuario = (
+        "Estou com dor de cabeça, eu ainda não brebi aqua ninhuma aunda hoji, "
+        "a cabeça tá duento muita o tia inteiru.. e eu to frakinho e sem vontadi ninhuma de sai da kama"
+    )
+
+    print("\n🤖 IA está pensando...\n")
+
+    inicio_total = time.time()
+
+    # Etapa 1 - Correção
+    texto_corrigido, tempo_correcao = corrigir_texto(texto_usuario)
+
+    # Etapa 2 - Análise
+    resposta_final, tempo_analise = analisar_sintomas(texto_corrigido)
+
+    fim_total = time.time()
+
+    # -------------------------
+    # OUTPUT ORGANIZADO
+    # -------------------------
+
+    print("📝 Texto corrigido:\n")
+    print(formatar_texto(texto_corrigido))
+
+    print("\n🩺 Análise:\n")
+    print(formatar_texto(resposta_final))
+
+    print("\n⏱ Tempo de correção: {:.2f} segundos".format(tempo_correcao))
+    print("⏱ Tempo de análise: {:.2f} segundos".format(tempo_analise))
+    print("⏱ Tempo total: {:.2f} segundos\n".format(fim_total - inicio_total))
