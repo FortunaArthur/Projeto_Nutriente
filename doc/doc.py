@@ -70,6 +70,8 @@ PowerShell:
 
     .\venv\Scripts\Activate.ps1
 
+    pra desativar: deactivate
+
 CMD:
 
     venv\Scripts\activate.bat
@@ -164,11 +166,11 @@ Ambiente reconstruído com as mesmas versões.
 
 Forma recomendada:
 
-    uvicorn init:app --reload
+    uvicorn app.commands.init:app --reload
 
 Ou via Python:
 
-    python -m uvicorn init:app --reload
+    python -m uvicorn app.commands.init:app --reload
 
 Onde:
     init = nome do arquivo
