@@ -1,9 +1,12 @@
 import os # Biblioteca padrão do Python para acessar variáveis de ambiente
+from pathlib import Path # Biblioteca para manipular caminhos de arquivos de forma fácil e multiplataforma
 from dotenv import load_dotenv # Função que carrega as variáveis do arquivo .env
 from sqlalchemy import create_engine # Cria o "motor" de conexão com o banco de dados
 from sqlalchemy.orm import sessionmaker # Cria sessões para interagir com o banco usando ORM
 
-load_dotenv() # Lê o arquivo .env e joga as variáveis no ambiente
+# Caminho absoluto do .env na mesma pasta
+env_path = Path(__file__).resolve().parent / ".env"
+load_dotenv(dotenv_path=env_path)
 
 DB_HOST = os.getenv("DB_HOST") # Endereço do servidor do banco
 DB_PORT = os.getenv("DB_PORT") # Porta do banco de dados
@@ -36,3 +39,4 @@ def get_connection():
         return None # Retorna None se falhar
 
 export = get_connection # Cria um alias da função (estilo export do Node, mas não é necessário em Python)
+# get_connection(); # Testa a conexão ao importar este módulo

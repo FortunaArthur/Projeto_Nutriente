@@ -8,7 +8,7 @@ if __name__ == "__main__":
     # Se alguém importar esse arquivo, isso NÃO executa
 
     uvicorn.run(
-        "init:app",
+        "app.commands.init:app",
         # "init"  -> arquivo init.py
         # "app"   -> variável app = FastAPI()
         # Ou seja: diz ao Uvicorn onde está a aplicação
