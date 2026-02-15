@@ -1,149 +1,62 @@
 import requests
 import time
-import textwrap
-
+import json
 
 URL = "http://localhost:11434/api/generate"
-MODEL = "phi3"
+MODEL = "phi3:latest"
 
 
-# ---------------------------------------------------
-# FUNÇÃO BASE DE CHAMADA DA IA (OTIMIZADA)
-# ---------------------------------------------------
-def chamar_ia(prompt, temperature=0.2, num_predict=80):
+def extrair_sintomas(texto):
 
+    prompt = f"""
+Extraia somente os sintomas explicitamente mencionados no texto.
+
+Responda EXCLUSIVAMENTE em JSON no formato:
+
+{{ "sintomas": ["sintoma1", "sintoma2"] }}
+
+Não escreva mais nada além do JSON.
+
+Texto:
+{texto}
+"""
+
+    inicio = time.time()
+
+    response = requests.post(
+        URL,
+        json={
+            "model": MODEL,
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": 0.0,
+                "top_p": 0.05,
+                "repeat_penalty": 1.5,
+                "num_predict": 80,
+                "num_ctx": 160
+            }
+        },
+        timeout=60
+    )
+
+    resposta_bruta = response.json().get("response", "").strip()
+
+    fim = time.time()
+
+    # 🔒 Tenta extrair JSON válido
     try:
-        response = requests.post(
-            URL,
-            json={
-                "model": MODEL,
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "temperature": temperature,
-                    "top_p": 0.8,
-                    "repeat_penalty": 1.1,
-                    "num_predict": num_predict,
-                    "num_ctx": 512
-                    }
+        inicio_json = resposta_bruta.find("{")
+        fim_json = resposta_bruta.rfind("}") + 1
+        json_str = resposta_bruta[inicio_json:fim_json]
+        dados = json.loads(json_str)
+        sintomas = dados.get("sintomas", [])
+    except:
+        sintomas = []
 
-            },
-            timeout=180
-        )
-
-        response.raise_for_status()
-
-        return response.json().get("response", "").strip()
-
-    except Exception as e:
-        return f"Erro na IA: {e}"
+    return sintomas, fim - inicio
 
 
-# ---------------------------------------------------
-# ETAPA 1 - CORREÇÃO AVANÇADA E CONTROLADA
-# ---------------------------------------------------
-def corrigir_texto(texto):
-
-    prompt = f"""
-        Você é um corretor linguístico especializado em:
-
-        - Ortografia
-        - Erros de digitação
-        - Escrita fonética
-        - Palavras digitadas de forma aproximada
-
-        OBJETIVO:
-        Corrigir apenas erros linguísticos mantendo exatamente o mesmo significado.
-
-        REGRAS RÍGIDAS:
-        - NÃO reescreva frases.
-        - NÃO mude a estrutura.
-        - NÃO adicione informações.
-        - NÃO remova informações.
-        - NÃO explique nada.
-        - NÃO interprete sintomas.
-        - Preserve o tom informal original.
-        - Corrija palavras escritas foneticamente usando contexto.
-        - Se uma palavra estiver próxima foneticamente de outra válida em português, corrija.
-
-        Retorne exclusivamente o texto corrigido.
-
-        Texto:
-        {texto}
-    """
-
-    inicio = time.time()
-
-    texto_corrigido = chamar_ia(
-        prompt,
-        temperature=0.1,
-        num_predict=120
-    )
-
-    fim = time.time()
-
-    # limpeza defensiva
-    if "Texto:" in texto_corrigido:
-        texto_corrigido = texto_corrigido.split("Texto:")[-1].strip()
-
-    texto_corrigido = " ".join(texto_corrigido.split())
-
-    return texto_corrigido, fim - inicio
-
-
-# ---------------------------------------------------
-# ETAPA 2 - EXTRAÇÃO DE SINTOMAS CONTROLADA
-# ---------------------------------------------------
-def extrair_sintomas(texto_corrigido):
-
-    prompt = f"""
-        Você é um extrator clínico objetivo.
-
-        OBJETIVO:
-        Extrair apenas sintomas explícitos no texto.
-
-        REGRAS:
-        - NÃO invente sintomas.
-        - NÃO deduza doenças.
-        - NÃO interprete além do texto.
-        - NÃO explique.
-        - NÃO reformule.
-        - Extraia apenas o que está claramente descrito.
-        - Se não houver sintomas, escreva: "Nenhum sintoma identificado."
-
-        FORMATO OBRIGATÓRIO:
-
-        Sintomas identificados:
-        - sintoma 1
-        - sintoma 2
-
-        Texto:
-        {texto_corrigido}
-    """
-
-    inicio = time.time()
-
-    resposta = chamar_ia(
-        prompt,
-        temperature=0.0,
-        num_predict=100
-    )
-
-    fim = time.time()
-
-    return resposta.strip(), fim - inicio
-
-
-# ---------------------------------------------------
-# FORMATADOR
-# ---------------------------------------------------
-def formatar_texto(texto, largura=80):
-    return textwrap.fill(texto, width=largura)
-
-
-# ---------------------------------------------------
-# EXECUÇÃO PRINCIPAL
-# ---------------------------------------------------
 if __name__ == "__main__":
 
     texto_usuario = (
@@ -151,24 +64,16 @@ if __name__ == "__main__":
         "minha cabeça doi na parte de trás e estou fraco sem vontade nenhuma de sair da cama"
     )
 
-    print("\n🤖 IA está pensando...\n")
+    print("\n🤖 IA analisando sintomas...\n")
 
-    inicio_total = time.time()
+    print("Texto do usuário:")
+    print(texto_usuario)
 
-    # Correção
-    texto_corrigido, tempo_correcao = corrigir_texto(texto_usuario)
+    sintomas, tempo = extrair_sintomas(texto_usuario)
 
-    # Extração
-    sintomas, tempo_extracao = extrair_sintomas(texto_corrigido)
+    print("\nSintomas identificados:\n")
 
-    fim_total = time.time()
+    for s in sintomas:
+        print(f"* {s}")
 
-    print("📝 Texto corrigido:\n")
-    print(formatar_texto(texto_corrigido))
-
-    print("\n🩺 Sintomas:\n")
-    print(formatar_texto(sintomas))
-
-    print("\n⏱ Tempo correção: {:.2f}s".format(tempo_correcao))
-    print("⏱ Tempo extração: {:.2f}s".format(tempo_extracao))
-    print("⏱ Tempo total: {:.2f}s\n".format(fim_total - inicio_total))
+    print(f"\n⏱ Tempo total: {tempo:.2f}s\n")
