@@ -4,101 +4,138 @@ import textwrap
 
 
 URL = "http://localhost:11434/api/generate"
+MODEL = "phi3"
 
 
 # ---------------------------------------------------
-# ETAPA 1 - CORRIGIR SOMENTE ORTOGRAFIA
+# FUNÇÃO BASE DE CHAMADA DA IA (OTIMIZADA)
+# ---------------------------------------------------
+def chamar_ia(prompt, temperature=0.2, num_predict=80):
+
+    try:
+        response = requests.post(
+            URL,
+            json={
+                "model": MODEL,
+                "prompt": prompt,
+                "stream": False,
+                "options": {
+                    "temperature": temperature,
+                    "top_p": 0.8,
+                    "repeat_penalty": 1.1,
+                    "num_predict": num_predict,
+                    "num_ctx": 512
+                    }
+
+            },
+            timeout=180
+        )
+
+        response.raise_for_status()
+
+        return response.json().get("response", "").strip()
+
+    except Exception as e:
+        return f"Erro na IA: {e}"
+
+
+# ---------------------------------------------------
+# ETAPA 1 - CORREÇÃO AVANÇADA E CONTROLADA
 # ---------------------------------------------------
 def corrigir_texto(texto):
-    prompt = f"""
-Corrija apenas erros ortográficos do texto abaixo.
-Não reescreva frases.
-Não explique nada.
-Não adicione nada.
-Não remova nada.
-Não mude o significado.
-Retorne somente o texto corrigido, em uma única linha.
 
-{texto}
-"""
+    prompt = f"""
+        Você é um corretor linguístico especializado em:
+
+        - Ortografia
+        - Erros de digitação
+        - Escrita fonética
+        - Palavras digitadas de forma aproximada
+
+        OBJETIVO:
+        Corrigir apenas erros linguísticos mantendo exatamente o mesmo significado.
+
+        REGRAS RÍGIDAS:
+        - NÃO reescreva frases.
+        - NÃO mude a estrutura.
+        - NÃO adicione informações.
+        - NÃO remova informações.
+        - NÃO explique nada.
+        - NÃO interprete sintomas.
+        - Preserve o tom informal original.
+        - Corrija palavras escritas foneticamente usando contexto.
+        - Se uma palavra estiver próxima foneticamente de outra válida em português, corrija.
+
+        Retorne exclusivamente o texto corrigido.
+
+        Texto:
+        {texto}
+    """
 
     inicio = time.time()
 
-    response = requests.post(
-        URL,
-        json={
-            "model": "phi3",
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.1,
-                "num_predict": 120
-            }
-        }
+    texto_corrigido = chamar_ia(
+        prompt,
+        temperature=0.1,
+        num_predict=120
     )
 
     fim = time.time()
 
-    texto_corrigido = response.json()["response"].strip()
+    # limpeza defensiva
+    if "Texto:" in texto_corrigido:
+        texto_corrigido = texto_corrigido.split("Texto:")[-1].strip()
 
-    # Limpeza caso o modelo insista em colocar rótulo
-    if "Texto corrigido:" in texto_corrigido:
-        texto_corrigido = texto_corrigido.split("Texto corrigido:")[-1].strip()
+    texto_corrigido = " ".join(texto_corrigido.split())
 
     return texto_corrigido, fim - inicio
 
 
 # ---------------------------------------------------
-# ETAPA 2 - ANALISAR SINTOMAS
+# ETAPA 2 - EXTRAÇÃO DE SINTOMAS CONTROLADA
 # ---------------------------------------------------
-def analisar_sintomas(texto_corrigido):
+def extrair_sintomas(texto_corrigido):
+
     prompt = f"""
-Você é um assistente médico educado.
-Responda em português do Brasil.
-Seja direto e objetivo.
+        Você é um extrator clínico objetivo.
 
-Use EXATAMENTE o formato abaixo:
+        OBJETIVO:
+        Extrair apenas sintomas explícitos no texto.
 
-Sintomas identificados:
-- ...
+        REGRAS:
+        - NÃO invente sintomas.
+        - NÃO deduza doenças.
+        - NÃO interprete além do texto.
+        - NÃO explique.
+        - NÃO reformule.
+        - Extraia apenas o que está claramente descrito.
+        - Se não houver sintomas, escreva: "Nenhum sintoma identificado."
 
-Possíveis causas:
-- ...
+        FORMATO OBRIGATÓRIO:
 
-Recomendações:
-- ...
+        Sintomas identificados:
+        - sintoma 1
+        - sintoma 2
 
-Não invente sintomas.
-Não exagere nas recomendações.
-Baseie-se apenas no texto fornecido.
-
-Texto:
-{texto_corrigido}
-"""
+        Texto:
+        {texto_corrigido}
+    """
 
     inicio = time.time()
 
-    response = requests.post(
-        URL,
-        json={
-            "model": "phi3",
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.2,
-                "top_p": 0.9,
-                "num_predict": 180
-            }
-        }
+    resposta = chamar_ia(
+        prompt,
+        temperature=0.0,
+        num_predict=100
     )
 
     fim = time.time()
 
-    return response.json()["response"].strip(), fim - inicio
+    return resposta.strip(), fim - inicio
 
 
 # ---------------------------------------------------
-# FORMATAR TEXTO BONITO NO TERMINAL
+# FORMATADOR
 # ---------------------------------------------------
 def formatar_texto(texto, largura=80):
     return textwrap.fill(texto, width=largura)
@@ -110,32 +147,28 @@ def formatar_texto(texto, largura=80):
 if __name__ == "__main__":
 
     texto_usuario = (
-        "Estou com dor de cabeça, eu ainda não brebi aqua ninhuma aunda hoji, "
-        "a cabeça tá duento muita o tia inteiru.. e eu to frakinho e sem vontadi ninhuma de sai da kama"
+        "Estou com dor de cabeça, eu ainda não bebi agua nenhuma hoje, "
+        "minha cabeça doi na parte de trás e estou fraco sem vontade nenhuma de sair da cama"
     )
 
     print("\n🤖 IA está pensando...\n")
 
     inicio_total = time.time()
 
-    # Etapa 1 - Correção
+    # Correção
     texto_corrigido, tempo_correcao = corrigir_texto(texto_usuario)
 
-    # Etapa 2 - Análise
-    resposta_final, tempo_analise = analisar_sintomas(texto_corrigido)
+    # Extração
+    sintomas, tempo_extracao = extrair_sintomas(texto_corrigido)
 
     fim_total = time.time()
-
-    # -------------------------
-    # OUTPUT ORGANIZADO
-    # -------------------------
 
     print("📝 Texto corrigido:\n")
     print(formatar_texto(texto_corrigido))
 
-    print("\n🩺 Análise:\n")
-    print(formatar_texto(resposta_final))
+    print("\n🩺 Sintomas:\n")
+    print(formatar_texto(sintomas))
 
-    print("\n⏱ Tempo de correção: {:.2f} segundos".format(tempo_correcao))
-    print("⏱ Tempo de análise: {:.2f} segundos".format(tempo_analise))
-    print("⏱ Tempo total: {:.2f} segundos\n".format(fim_total - inicio_total))
+    print("\n⏱ Tempo correção: {:.2f}s".format(tempo_correcao))
+    print("⏱ Tempo extração: {:.2f}s".format(tempo_extracao))
+    print("⏱ Tempo total: {:.2f}s\n".format(fim_total - inicio_total))
