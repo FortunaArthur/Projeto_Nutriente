@@ -3,55 +3,56 @@ import time
 import json
 
 URL = "http://localhost:11434/api/generate"
-MODEL = "phi3:latest"
-
+MODEL = "mistral"
 
 def extrair_sintomas(texto):
 
     prompt = f"""
-Extraia somente os sintomas explicitamente mencionados no texto.
+Extraia apenas os sintomas mencionados.
 
-Responda EXCLUSIVAMENTE em JSON no formato:
+Responda SOMENTE com JSON válido no formato:
+{{"sintomas":["..."]}}
 
-{{ "sintomas": ["sintoma1", "sintoma2"] }}
-
-Não escreva mais nada além do JSON.
-
-Texto:
-{texto}
+Texto: {texto}
 """
 
     inicio = time.time()
 
-    response = requests.post(
-        URL,
-        json={
-            "model": MODEL,
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.0,
-                "top_p": 0.05,
-                "repeat_penalty": 1.5,
-                "num_predict": 80,
-                "num_ctx": 160
-            }
-        },
-        timeout=60
-    )
+    try:
+        response = requests.post(
+            URL,
+            json={
+                "model": MODEL,
+                "prompt": prompt,
+                "stream": False,
+                "options": {
+                    "temperature": 0,
+                    "num_predict": 60,
+                    "top_p": 0.1,
+                    "repeat_penalty": 1.2
+                }
+            },
+            timeout=660  # 🔥 aumenta timeout
+        )
 
-    resposta_bruta = response.json().get("response", "").strip()
+        resposta = response.json().get("response", "").strip()
+
+    except requests.exceptions.Timeout:
+        print("⚠ Timeout do modelo")
+        return [], 0
 
     fim = time.time()
 
-    # 🔒 Tenta extrair JSON válido
+    # 🔒 Extração segura de JSON
     try:
-        inicio_json = resposta_bruta.find("{")
-        fim_json = resposta_bruta.rfind("}") + 1
-        json_str = resposta_bruta[inicio_json:fim_json]
+        inicio_json = resposta.find("{")
+        fim_json = resposta.rfind("}") + 1
+        json_str = resposta[inicio_json:fim_json]
         dados = json.loads(json_str)
         sintomas = dados.get("sintomas", [])
-    except:
+    except Exception:
+        print("⚠ Falha ao converter JSON")
+        print("Resposta bruta:", resposta)
         sintomas = []
 
     return sintomas, fim - inicio
